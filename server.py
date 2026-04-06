@@ -466,45 +466,57 @@ class AgentRequest(BaseModel):
     question: Optional[str] = None
 
 @app.post("/agent/ask", tags=["agent"])
-async def agent_ask(req: AgentRequest, user: dict = Depends(get_current_user)):
+def agent_ask_sync(req: AgentRequest, user: dict = Depends(get_current_user)):
     """
     Full AI analysis for a single ticker — candlestick chart + indicators + signal.
+    Sync endpoint so FastAPI auto-threads it (avoids event-loop conflicts with matplotlib).
     """
     if not req.ticker or len(req.ticker.strip()) < 1:
         raise HTTPException(status_code=400, detail="ticker is required")
     try:
         from trading_agent import analyze
-        import concurrent.futures
-        loop   = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            result = await loop.run_in_executor(
-                pool, lambda: analyze(req.ticker.strip(), req.question)
-            )
-        return result
+        result = analyze(req.ticker.strip(), req.question)
+        # Sanitise any NaN/Inf values that break JSON serialisation
+        import math
+        def _clean(obj):
+            if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+                return 0.0
+            if isinstance(obj, dict):
+                return {k: _clean(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_clean(v) for v in obj]
+            return obj
+        return _clean(result)
     except Exception as e:
         import traceback; traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e), "ticker": req.ticker}
 
 @app.get("/agent/find-trades", tags=["agent"])
-async def find_trades_endpoint(
+def find_trades_sync(
     n: int = 10,
     user: dict = Depends(get_current_user)
 ):
     """
-    Autonomous trade finder — scans 30 tickers (20 stocks + 10 crypto) in parallel.
-    Returns top-N opportunities ranked by signal confidence.
+    Autonomous trade finder — scans 30 tickers in parallel.
+    Sync endpoint so FastAPI auto-threads it.
     """
     n = max(1, min(n, 20))
     try:
         from trade_finder import find_trades
-        import concurrent.futures
-        loop   = asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            result = await loop.run_in_executor(pool, lambda: find_trades(n))
-        return result
+        result = find_trades(n)
+        import math
+        def _clean(obj):
+            if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+                return 0.0
+            if isinstance(obj, dict):
+                return {k: _clean(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_clean(v) for v in obj]
+            return obj
+        return _clean(result)
     except Exception as e:
         import traceback; traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e), "top_trades": [], "scanned": 0, "signals_found": 0, "elapsed_s": 0}
 
 # ─── HEALTH ────────────────────────────────────────────────────────────────���──
 @app.get("/health", tags=["infra"])
