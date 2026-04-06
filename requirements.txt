@@ -1,0 +1,12 @@
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+yfinance>=0.2.31
+numpy>=1.24.0
+matplotlib>=3.7.0
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.6
+requests>=2.31.0
+pandas>=2.0.0
+websockets>=11.0
