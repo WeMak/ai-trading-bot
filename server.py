@@ -474,12 +474,15 @@ async def agent_ask(req: AgentRequest, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="ticker is required")
     try:
         from trading_agent import analyze
-        loop   = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None, lambda: analyze(req.ticker.strip(), req.question)
-        )
+        import concurrent.futures
+        loop   = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result = await loop.run_in_executor(
+                pool, lambda: analyze(req.ticker.strip(), req.question)
+            )
         return result
     except Exception as e:
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/agent/find-trades", tags=["agent"])
@@ -491,13 +494,16 @@ async def find_trades_endpoint(
     Autonomous trade finder — scans 30 tickers (20 stocks + 10 crypto) in parallel.
     Returns top-N opportunities ranked by signal confidence.
     """
-    n = max(1, min(n, 20))   # clamp to 1-20
+    n = max(1, min(n, 20))
     try:
         from trade_finder import find_trades
-        loop   = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, lambda: find_trades(n))
+        import concurrent.futures
+        loop   = asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result = await loop.run_in_executor(pool, lambda: find_trades(n))
         return result
     except Exception as e:
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # ─── HEALTH ────────────────────────────────────────────────────────────────���──
