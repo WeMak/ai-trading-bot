@@ -1,5 +1,5 @@
 """
-Crypto Scanner — Top 30 cryptocurrencies
+Crypto Scanner — Top 150 cryptocurrencies
 ==========================================
 Deep technical analysis on major crypto assets.
 Includes fear/greed index proxy + correlation analysis.
@@ -16,42 +16,7 @@ from trading_agent import (
     _rsi, _macd, _bollinger, _sma, _atr, _sr_levels, _score, CRYPTO_MAP
 )
 
-# Top 30 crypto by market cap
-CRYPTO_TICKERS = {
-    # Tier 1 — Large caps
-    "BTC": "BTC-USD",
-    "ETH": "ETH-USD",
-    "BNB": "BNB-USD",
-    "SOL": "SOL-USD",
-    "XRP": "XRP-USD",
-    "ADA": "ADA-USD",
-    "AVAX": "AVAX-USD",
-    "DOT": "DOT-USD",
-    "LINK": "LINK-USD",
-    "MATIC": "MATIC-USD",
-    # Tier 2 — Mid caps
-    "DOGE": "DOGE-USD",
-    "LTC": "LTC-USD",
-    "BCH": "BCH-USD",
-    "UNI": "UNI-USD",
-    "ATOM": "ATOM-USD",
-    "XLM": "XLM-USD",
-    "TRX": "TRX-USD",
-    "NEAR": "NEAR-USD",
-    "FIL": "FIL-USD",
-    "APT": "APT-USD",
-    # Tier 3 — Emerging
-    "ARB": "ARB11841-USD",
-    "OP": "OP-USD",
-    "INJ": "INJ-USD",
-    "SUI": "SUI20947-USD",
-    "SEI": "SEI-USD",
-    "TIA": "TIA22861-USD",
-    "RENDER": "RNDR-USD",
-    "FET": "FET-USD",
-    "PEPE": "PEPE24478-USD",
-    "WIF": "WIF-USD",
-}
+from universe import CRYPTO_TICKERS
 
 
 def _analyze_crypto(symbol: str, yf_ticker: str) -> Optional[dict]:

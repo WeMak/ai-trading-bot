@@ -3,7 +3,7 @@ Ollama AI Brain — Local LLM for trade analysis
 ================================================
 Sends structured market data to your local Ollama models.
 No tokens used, no data leaves your PC.
-Uses qwen2.5-coder:32b for analysis (fast, smart).
+Uses gemma4:31b for analysis (fast, smart, best available).
 """
 
 import warnings; warnings.filterwarnings("ignore")
@@ -12,7 +12,7 @@ import requests
 from typing import Optional
 
 OLLAMA_URL = "http://localhost:11434"
-MODEL = "qwen2.5-coder:32b"  # Best balance of speed + intelligence
+MODEL = "gemma4:31b"  # Best balance of speed + intelligence
 
 
 def _call_ollama(prompt: str, system: str = "", temperature: float = 0.3,

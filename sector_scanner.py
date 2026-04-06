@@ -17,45 +17,9 @@ from trading_agent import (
 )
 
 # ── Top 10 stocks per GICS sector ────────────────────────────
-SECTORS = {
-    "Technology": [
-        "AAPL", "MSFT", "NVDA", "AVGO", "AMD", "CRM", "ORCL", "ADBE", "CSCO", "INTC"
-    ],
-    "Healthcare": [
-        "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY"
-    ],
-    "Financials": [
-        "JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "AXP", "C", "USB"
-    ],
-    "Consumer Discretionary": [
-        "AMZN", "TSLA", "HD", "MCD", "NKE", "LOW", "SBUX", "TJX", "BKNG", "CMG"
-    ],
-    "Consumer Staples": [
-        "PG", "KO", "PEP", "COST", "WMT", "PM", "MO", "CL", "MDLZ", "KHC"
-    ],
-    "Energy": [
-        "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HAL"
-    ],
-    "Industrials": [
-        "CAT", "GE", "HON", "UPS", "BA", "RTX", "LMT", "DE", "UNP", "MMM"
-    ],
-    "Materials": [
-        "LIN", "APD", "SHW", "ECL", "DD", "NEM", "FCX", "DOW", "NUE", "VMC"
-    ],
-    "Real Estate": [
-        "PLD", "AMT", "CCI", "EQIX", "SPG", "PSA", "O", "WELL", "DLR", "AVB"
-    ],
-    "Utilities": [
-        "NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "WEC", "ES"
-    ],
-    "Communication Services": [
-        "META", "GOOGL", "NFLX", "DIS", "CMCSA", "VZ", "T", "TMUS", "CHTR", "EA"
-    ],
-}
+from universe import SECTORS, ALL_STOCKS
 
-ALL_SECTOR_TICKERS = []
-for tickers in SECTORS.values():
-    ALL_SECTOR_TICKERS.extend(tickers)
+ALL_SECTOR_TICKERS = ALL_STOCKS
 
 
 def _analyze_ticker(ticker: str) -> Optional[dict]:

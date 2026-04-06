@@ -17,7 +17,7 @@ from typing import Optional
 import requests
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-HEAL_MODEL = "qwen2.5-coder:32b"  # fast local model for error fixing
+HEAL_MODEL = "gemma4:31b"  # fast local model for error fixing
 HEAL_LOG_PATH = os.path.join(os.path.dirname(__file__), "heal_log.json")
 
 _heal_log = []

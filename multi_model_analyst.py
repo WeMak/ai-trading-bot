@@ -4,7 +4,7 @@ Multi-Model Ollama Analyst
 Runs all available Ollama models in parallel on the same trade signal,
 then combines their outputs into a consensus recommendation.
 
-Models: gpt-oss:120b, qwen3-coder:30b, qwen2.5-coder:32b
+Models: gemma4:31b (primary), gemma4:latest, qwen2.5-coder:32b
 Each model independently analyzes the same data.
 Consensus = weighted vote across all models.
 """
@@ -20,8 +20,8 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 
 # Models in priority order (larger = higher weight)
 MODELS = [
-    {"name": "gpt-oss:120b", "weight": 1.5, "timeout": 120},
-    {"name": "qwen3-coder:30b", "weight": 1.0, "timeout": 90},
+    {"name": "gemma4:31b", "weight": 1.5, "timeout": 120},
+    {"name": "gemma4:latest", "weight": 1.0, "timeout": 90},
     {"name": "qwen2.5-coder:32b", "weight": 1.0, "timeout": 90},
 ]
 

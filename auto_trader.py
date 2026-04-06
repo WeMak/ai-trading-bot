@@ -275,28 +275,53 @@ def _ensemble_vote(ticker_data: dict) -> dict:
 
 # ─── MAIN LOOP ──────────────────────────────────────────────────
 def _scan_cycle():
-    """Run one full scan cycle across all sector stocks."""
-    from sector_scanner import SECTORS
+    """Run one full scan cycle across all stocks + crypto."""
+    from universe import SECTORS, ALL_STOCKS, CRYPTO_TICKERS
 
-    all_tickers = []
-    for sector, tickers in SECTORS.items():
-        all_tickers.extend(tickers)
+    all_tickers = list(ALL_STOCKS)
 
-    _think(f"=== SCAN CYCLE #{_agent_state['cycles']+1} === Scanning {len(all_tickers)} stocks across {len(SECTORS)} sectors", "scan")
+    # Add crypto tickers
+    crypto_yf = list(CRYPTO_TICKERS.values())
+    all_tickers.extend(crypto_yf)
 
-    # Fetch data in parallel
+    _think(f"=== SCAN CYCLE #{_agent_state['cycles']+1} === Scanning {len(ALL_STOCKS)} stocks + {len(CRYPTO_TICKERS)} crypto = {len(all_tickers)} total across {len(SECTORS)} sectors", "scan")
+
+    # Scan sector by sector for visibility
     results = []
-    with ThreadPoolExecutor(max_workers=10) as pool:
-        futures = {pool.submit(_fetch_ticker_data, t): t for t in all_tickers}
+    sector_names = list(SECTORS.keys())
+
+    # Stocks — batch by sector
+    for sidx, (sector, tickers) in enumerate(SECTORS.items()):
+        _think(f"  [{sidx+1}/{len(SECTORS)}] Scanning {sector}: {len(tickers)} tickers ({', '.join(tickers[:8])}{'...' if len(tickers)>8 else ''})", "scan")
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            futures = {pool.submit(_fetch_ticker_data, t): t for t in tickers}
+            count = 0
+            for f in futures:
+                try:
+                    data = f.result(timeout=30)
+                    if data:
+                        results.append(data)
+                        count += 1
+                except Exception:
+                    pass
+            _think(f"    {sector}: {count}/{len(tickers)} loaded", "info")
+
+    # Crypto
+    _think(f"  Scanning {len(crypto_yf)} crypto assets...", "scan")
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        futures = {pool.submit(_fetch_ticker_data, t): t for t in crypto_yf}
+        crypto_count = 0
         for f in futures:
             try:
                 data = f.result(timeout=30)
                 if data:
                     results.append(data)
+                    crypto_count += 1
             except Exception:
                 pass
+    _think(f"    Crypto: {crypto_count}/{len(crypto_yf)} loaded", "info")
 
-    _think(f"Data fetched: {len(results)}/{len(all_tickers)} stocks loaded successfully", "scan")
+    _think(f"Data fetched: {len(results)}/{len(all_tickers)} total assets loaded successfully", "scan")
 
     # Run ensemble on each
     signals = []

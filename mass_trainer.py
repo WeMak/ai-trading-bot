@@ -20,51 +20,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from trading_agent import _rsi, _macd, _bollinger, _sma, _atr
 
-# ─── S&P 500 TOP STOCKS (by market cap + sector diversity) ─────
-SP500_STOCKS = [
-    # Technology (40)
-    "AAPL", "MSFT", "NVDA", "AVGO", "AMD", "CRM", "ORCL", "ADBE", "CSCO", "INTC",
-    "QCOM", "TXN", "NOW", "INTU", "AMAT", "MU", "LRCX", "KLAC", "SNPS", "CDNS",
-    "MRVL", "ADI", "NXPI", "FTNT", "PANW", "CRWD", "WDAY", "TEAM", "ZS", "DDOG",
-    "MCHP", "ON", "MPWR", "KEYS", "ANSS", "SWKS", "FSLR", "ENPH", "SEDG", "GLW",
-    # Healthcare (30)
-    "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY",
-    "AMGN", "GILD", "ISRG", "VRTX", "REGN", "MDT", "SYK", "BDX", "ZTS", "CI",
-    "ELV", "HUM", "CNC", "MCK", "CVS", "BSX", "EW", "IDXX", "DXCM", "BAX",
-    # Financials (30)
-    "JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "AXP", "C", "USB",
-    "PNC", "TFC", "COF", "BK", "STT", "FITB", "HBAN", "KEY", "CFG", "RF",
-    "AIG", "MET", "PRU", "ALL", "TRV", "CB", "MMC", "AON", "AJG", "CINF",
-    # Consumer Discretionary (30)
-    "AMZN", "TSLA", "HD", "MCD", "NKE", "LOW", "SBUX", "TJX", "BKNG", "CMG",
-    "ORLY", "AZO", "ROST", "DHI", "LEN", "PHM", "GM", "F", "MAR", "HLT",
-    "YUM", "DPZ", "DARDEN", "POOL", "BBY", "ETSY", "EBAY", "W", "DECK", "GRMN",
-    # Consumer Staples (20)
-    "PG", "KO", "PEP", "COST", "WMT", "PM", "MO", "CL", "MDLZ", "KHC",
-    "GIS", "K", "HSY", "SJM", "CAG", "CPB", "TSN", "HRL", "MKC", "CHD",
-    # Energy (20)
-    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HAL",
-    "DVN", "FANG", "HES", "BKR", "TRGP", "WMB", "OKE", "KMI", "ET", "LNG",
-    # Industrials (30)
-    "CAT", "GE", "HON", "UPS", "BA", "RTX", "LMT", "DE", "UNP", "MMM",
-    "FDX", "CSX", "NSC", "WM", "RSG", "EMR", "ETN", "ROK", "PH", "ITW",
-    "GD", "NOC", "TDG", "CARR", "OTIS", "JCI", "SWK", "CMI", "PCAR", "FAST",
-    # Materials (15)
-    "LIN", "APD", "SHW", "ECL", "DD", "NEM", "FCX", "DOW", "NUE", "VMC",
-    "MLM", "PPG", "ALB", "CF", "MOS",
-    # Real Estate (15)
-    "AMT", "PLD", "CCI", "EQIX", "SPG", "O", "DLR", "PSA", "WELL", "AVB",
-    "EQR", "VTR", "ARE", "MAA", "UDR",
-    # Utilities (15)
-    "NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "ED", "WEC",
-    "ES", "AWK", "ATO", "CMS", "DTE",
-    # Communication Services (20)
-    "GOOGL", "META", "NFLX", "DIS", "CMCSA", "T", "VZ", "TMUS", "CHTR", "EA",
-    "ATVI", "TTWO", "RBLX", "MTCH", "ZG", "PINS", "SNAP", "ROKU", "PARA", "WBD",
-    # Crypto proxies & ETFs (15)
-    "COIN", "MSTR", "MARA", "RIOT", "HUT", "BITF", "CLSK", "SQ", "PYPL", "SOFI",
-    "HOOD", "AFRM", "UPST", "NU", "BILL",
-]
+from universe import ALL_STOCKS
+SP500_STOCKS = ALL_STOCKS  # ~1900 stocks across all sectors
 
 
 def _process_ticker(ticker: str, period: str = "10y") -> dict:

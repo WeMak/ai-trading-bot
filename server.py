@@ -561,6 +561,36 @@ def system_health(user=Depends(get_current_user)):
     return _clean(health)
 
 
+# ─── AI CHAT ENDPOINTS ─────────────────────────────────────────
+class ChatRequest(BaseModel):
+    message: str
+    include_context: bool = True
+
+@app.post("/chat/send")
+def chat_send(req: ChatRequest, user=Depends(get_current_user)):
+    """Send a message to the AI finance trader."""
+    from ai_chat import chat
+    return _clean(chat(req.message, req.include_context))
+
+@app.get("/chat/history")
+def chat_history(limit: int = 50, user=Depends(get_current_user)):
+    """Get chat history."""
+    from ai_chat import get_chat_history
+    return _clean(get_chat_history(limit))
+
+@app.post("/chat/clear")
+def chat_clear(user=Depends(get_current_user)):
+    """Clear chat history."""
+    from ai_chat import clear_chat
+    return clear_chat()
+
+@app.post("/chat/quick/{ticker}")
+def chat_quick(ticker: str, user=Depends(get_current_user)):
+    """Quick AI analysis of a ticker."""
+    from ai_chat import quick_analysis
+    return _clean(quick_analysis(ticker))
+
+
 # ─── RESULTS ENDPOINTS ──────────────────────────────────────────
 @app.get("/results/{name}")
 def get_results(name: str, user=Depends(get_current_user)):
