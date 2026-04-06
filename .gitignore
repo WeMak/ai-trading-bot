@@ -1,0 +1,37 @@
+# Credentials & secrets — NEVER commit these
+.env
+*.env
+secrets.json
+
+# Paper trading account data (personal)
+paper_account.json
+
+# Security scan results (personal)
+security_report.json
+test_chart.html
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+uvicorn.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
