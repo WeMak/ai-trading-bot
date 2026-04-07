@@ -161,6 +161,7 @@ tbody tr.clickable{cursor:pointer}
     <a onclick="showPage('market')" data-page="market"><span class="icon">&#9670;</span><span>Market Overview</span></a>
     <a onclick="showPage('agent')" data-page="agent"><span class="icon">&#9889;</span><span>AI Agent</span></a>
     <a onclick="showPage('chat')" data-page="chat"><span class="icon">&#9998;</span><span>AI Chat</span></a>
+    <a onclick="showPage('train')" data-page="train"><span class="icon">&#9881;</span><span>Train & Backtest</span></a>
     <a onclick="showPage('portfolio')" data-page="portfolio"><span class="icon">&#9776;</span><span>Portfolio</span></a>
     <a onclick="showPage('logs')" data-page="logs"><span class="icon">&#9999;</span><span>Logs</span></a>
   </nav>
@@ -597,6 +598,114 @@ tbody tr.clickable{cursor:pointer}
     <div style="display:flex;gap:8px">
       <input id="chat-input" placeholder="Ask your AI trader anything... (e.g., 'Should I buy $AAPL?' or 'What sectors are strong?')" style="flex:1;padding:12px 16px;font-size:14px" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSendInput()}">
       <button class="btn green" onclick="chatSendInput()" id="chat-send-btn" style="padding:12px 24px;font-size:14px">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TRAIN & BACKTEST PAGE ═══════ -->
+<div id="page-train" class="page">
+  <div class="flex-between mb">
+    <h2 style="font-size:18px;font-weight:700">Train Models & Backtest</h2>
+    <div class="btn-group">
+      <button class="btn green" onclick="startFullPipeline()" id="btn-pipeline">Full Pipeline (500 stocks)</button>
+      <button class="btn" onclick="startBacktestOnly()" id="btn-bt-only">Backtest Only</button>
+      <button class="btn amber" onclick="pollBacktestStatus()">Refresh Status</button>
+    </div>
+  </div>
+
+  <!-- Config Panel -->
+  <div class="grid2 mb">
+    <div class="card">
+      <h2>Configuration</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label class="dim" style="padding:6px 0">Stocks:</label>
+        <input id="bt-stocks" type="number" value="100" min="10" max="500" style="background:var(--bg);border:1px solid var(--grid);color:var(--text);padding:6px;border-radius:4px">
+        <label class="dim" style="padding:6px 0">Period:</label>
+        <select id="bt-period" style="background:var(--bg);border:1px solid var(--grid);color:var(--text);padding:6px;border-radius:4px">
+          <option value="1y">1 Year</option>
+          <option value="2y" selected>2 Years</option>
+          <option value="3y">3 Years</option>
+          <option value="5y">5 Years</option>
+        </select>
+        <label class="dim" style="padding:6px 0">R:R Ratio:</label>
+        <input id="bt-rr" type="number" value="5" min="1" max="20" step="0.5" style="background:var(--bg);border:1px solid var(--grid);color:var(--text);padding:6px;border-radius:4px">
+        <label class="dim" style="padding:6px 0">Capital ($):</label>
+        <input id="bt-capital" type="number" value="100000" step="10000" style="background:var(--bg);border:1px solid var(--grid);color:var(--text);padding:6px;border-radius:4px">
+        <label class="dim" style="padding:6px 0">Risk/Trade (%):</label>
+        <input id="bt-risk" type="number" value="1.0" min="0.1" max="5" step="0.1" style="background:var(--bg);border:1px solid var(--grid);color:var(--text);padding:6px;border-radius:4px">
+      </div>
+    </div>
+    <div class="card">
+      <h2>Progress</h2>
+      <div id="bt-progress-box">
+        <div style="margin-bottom:12px">
+          <div class="progress" style="height:20px;border-radius:10px">
+            <div id="bt-progress-bar" class="fill" style="width:0%;background:var(--cyan);transition:width 0.5s;border-radius:10px"></div>
+          </div>
+          <div id="bt-progress-pct" class="dim" style="text-align:center;margin-top:4px">0%</div>
+        </div>
+        <div id="bt-progress-msg" class="dim" style="font-size:13px">Ready to run</div>
+        <div id="bt-progress-status" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div id="bt-summary" style="display:none">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
+      <div class="card" style="text-align:center"><div class="dim" style="font-size:11px">Total PNL</div><div id="bs-pnl" style="font-size:20px;font-weight:700">--</div></div>
+      <div class="card" style="text-align:center"><div class="dim" style="font-size:11px">Win Rate</div><div id="bs-winrate" style="font-size:20px;font-weight:700">--</div></div>
+      <div class="card" style="text-align:center"><div class="dim" style="font-size:11px">Profit Factor</div><div id="bs-pf" style="font-size:20px;font-weight:700">--</div></div>
+      <div class="card" style="text-align:center"><div class="dim" style="font-size:11px">Avg R</div><div id="bs-avgr" style="font-size:20px;font-weight:700">--</div></div>
+      <div class="card" style="text-align:center"><div class="dim" style="font-size:11px">Sharpe (avg)</div><div id="bs-sharpe" style="font-size:20px;font-weight:700">--</div></div>
+      <div class="card" style="text-align:center"><div class="dim" style="font-size:11px">Total Trades</div><div id="bs-trades" style="font-size:20px;font-weight:700">--</div></div>
+    </div>
+
+    <!-- Detailed Stats Grid -->
+    <div class="grid2 mb">
+      <div class="card">
+        <h2>Performance Summary</h2>
+        <div id="bt-perf-summary"></div>
+      </div>
+      <div class="card">
+        <h2>Monte Carlo Simulation</h2>
+        <div id="bt-montecarlo"></div>
+      </div>
+    </div>
+
+    <div class="grid2 mb">
+      <div class="card">
+        <h2>Out-of-Sample Results (Random 3mo)</h2>
+        <div id="bt-oos"></div>
+      </div>
+      <div class="card">
+        <h2>Exit Reason Breakdown</h2>
+        <div id="bt-exits"></div>
+      </div>
+    </div>
+
+    <!-- Top/Bottom Stocks -->
+    <div class="grid2 mb">
+      <div class="card">
+        <h2>Top 5 Stocks</h2>
+        <div id="bt-top5"></div>
+      </div>
+      <div class="card">
+        <h2>Bottom 5 Stocks</h2>
+        <div id="bt-bottom5"></div>
+      </div>
+    </div>
+
+    <!-- Per-Stock Table -->
+    <div class="card mb">
+      <h2>Per-Stock Results <span class="dim" style="font-size:12px">(click ticker for trades)</span></h2>
+      <div id="bt-stock-table" style="max-height:500px;overflow:auto"></div>
+    </div>
+
+    <!-- Trade Detail Modal -->
+    <div class="card mb" id="bt-trade-detail" style="display:none">
+      <h2>Trades: <span id="bt-detail-ticker">--</span></h2>
+      <div id="bt-trade-list" style="max-height:400px;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -1900,7 +2009,202 @@ showPage = function(name) {
   _origShowPage2(name);
   if (name === 'market') { loadMarketAll(); }
   if (name === 'chat') { loadChatHistory(); document.getElementById('chat-input').focus(); }
+  if (name === 'train') { pollBacktestStatus(); }
 };
+
+// ── Train & Backtest ─────────────
+let _btPollTimer = null;
+
+async function startFullPipeline() {
+  if (!confirm('Start full pipeline? This will:\n1. Download 500 stocks (5y data)\n2. Train NEAT + PyTorch + Evo models\n3. Backtest all stocks (5:1 R/R)\n4. Run random 3-month OOS tests\n5. Monte Carlo simulation\n\nThis may take 30-60 minutes.')) return;
+  try {
+    const r = await api('/train/full-pipeline', {method:'POST'});
+    log('Full pipeline started', 'success');
+    _startPolling();
+  } catch(e) { log('Pipeline error: '+e.message,'error'); }
+}
+
+async function startBacktestOnly() {
+  const n = parseInt(document.getElementById('bt-stocks').value) || 100;
+  const period = document.getElementById('bt-period').value;
+  const rr = parseFloat(document.getElementById('bt-rr').value) || 5;
+  const capital = parseFloat(document.getElementById('bt-capital').value) || 100000;
+  const risk = parseFloat(document.getElementById('bt-risk').value) || 1.0;
+  try {
+    await api('/backtest/run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({n_stocks:n, period, reward_ratio:rr, initial_capital:capital, risk_per_trade_pct:risk})});
+    log(`Backtest started: ${n} stocks, ${period}, ${rr}:1 R/R`, 'success');
+    _startPolling();
+  } catch(e) { log('Backtest error: '+e.message,'error'); }
+}
+
+function _startPolling() {
+  if (_btPollTimer) clearInterval(_btPollTimer);
+  _btPollTimer = setInterval(pollBacktestStatus, 3000);
+}
+
+async function pollBacktestStatus() {
+  try {
+    const d = await api('/backtest/status');
+    const bar = document.getElementById('bt-progress-bar');
+    const pct = document.getElementById('bt-progress-pct');
+    const msg = document.getElementById('bt-progress-msg');
+    const status = document.getElementById('bt-progress-status');
+    bar.style.width = d.progress + '%';
+    pct.textContent = d.progress.toFixed(0) + '%';
+    msg.textContent = d.message || (d.running ? 'Running...' : 'Idle');
+    status.innerHTML = d.running ? '<span class="buy">Running</span>' : (d.has_result ? '<span class="buy">Complete</span>' : '<span class="dim">Ready</span>');
+    if (!d.running && d.has_result) {
+      if (_btPollTimer) { clearInterval(_btPollTimer); _btPollTimer = null; }
+      loadBacktestResults();
+    }
+  } catch(e) {}
+}
+
+async function loadBacktestResults() {
+  try {
+    const d = await api('/backtest/results');
+    if (d.error) { log(d.error, 'error'); return; }
+    const sum = document.getElementById('bt-summary');
+    sum.style.display = 'block';
+
+    // Summary cards
+    const pnl = d.total_pnl || d.backtest?.total_pnl || 0;
+    const wr = d.win_rate || d.backtest?.win_rate || 0;
+    const pf = d.profit_factor || d.backtest?.profit_factor || 0;
+    const ar = d.avg_r_multiple || d.backtest?.avg_r_multiple || 0;
+    const tt = d.total_trades || d.backtest?.total_trades || 0;
+
+    document.getElementById('bs-pnl').innerHTML = `<span class="${pnl>=0?'buy':'sell'}">$${pnl.toLocaleString(undefined,{minimumFractionDigits:0})}</span>`;
+    document.getElementById('bs-winrate').innerHTML = `<span class="${wr>=50?'buy':'sell'}">${wr}%</span>`;
+    document.getElementById('bs-pf').innerHTML = `<span class="${pf>=1?'buy':'sell'}">${pf}</span>`;
+    document.getElementById('bs-avgr').innerHTML = `<span class="${ar>=0?'buy':'sell'}">${ar}R</span>`;
+    document.getElementById('bs-trades').textContent = tt;
+
+    // Compute average sharpe across stocks
+    const ps = d.per_stock || d.backtest?.per_stock || {};
+    const sharpes = Object.values(ps).map(v=>v.sharpe_ratio||0).filter(v=>v!==0);
+    const avgSharpe = sharpes.length ? (sharpes.reduce((a,b)=>a+b,0)/sharpes.length).toFixed(2) : '--';
+    document.getElementById('bs-sharpe').innerHTML = `<span class="${parseFloat(avgSharpe)>=0?'buy':'sell'}">${avgSharpe}</span>`;
+
+    // Performance summary
+    const r = d.backtest || d;
+    let perfHtml = '';
+    const perfRows = [
+      ['Stocks Tested', r.n_stocks_tested],
+      ['Stocks Traded', r.n_stocks_with_trades],
+      ['Stocks Profitable', r.n_stocks_profitable],
+      ['Total Trades', r.total_trades],
+      ['Winners / Losers', `${r.total_winners} / ${r.total_losers}`],
+      ['Win Rate', `${r.win_rate}%`],
+      ['Total PNL', `$${(r.total_pnl||0).toLocaleString()}`],
+      ['Avg PNL/Trade', `$${(r.avg_pnl_per_trade||0).toLocaleString()}`],
+      ['Profit Factor', r.profit_factor],
+      ['Avg Win', `$${(r.avg_win||0).toLocaleString()}`],
+      ['Avg Loss', `$${(r.avg_loss||0).toLocaleString()}`],
+      ['Avg R-Multiple', `${r.avg_r_multiple}R`],
+      ['R Std Dev', r.r_multiple_std],
+    ];
+    perfRows.forEach(([k,v]) => { perfHtml += `<div style="padding:6px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">${k}</span><span>${v??'--'}</span></div>`; });
+    document.getElementById('bt-perf-summary').innerHTML = perfHtml;
+
+    // Monte Carlo
+    const mc = r.monte_carlo || d.monte_carlo || {};
+    let mcHtml = '';
+    if (mc.runs) {
+      const mcRows = [
+        ['Simulations', mc.runs],
+        ['Median Equity', `$${(mc.median_final_equity||0).toLocaleString()}`],
+        ['5th Percentile', `$${(mc.p5_equity||0).toLocaleString()}`],
+        ['25th Percentile', `$${(mc.p25_equity||0).toLocaleString()}`],
+        ['75th Percentile', `$${(mc.p75_equity||0).toLocaleString()}`],
+        ['95th Percentile', `$${(mc.p95_equity||0).toLocaleString()}`],
+        ['Worst Case', `$${(mc.worst_case_equity||0).toLocaleString()}`],
+        ['Best Case', `$${(mc.best_case_equity||0).toLocaleString()}`],
+        ['Median Max DD', `${mc.median_max_dd}%`],
+        ['95th Max DD', `${mc.p95_max_dd}%`],
+        ['Ruin Probability', `<span class="${mc.ruin_probability<5?'buy':'sell'}">${mc.ruin_probability}%</span>`],
+      ];
+      mcRows.forEach(([k,v]) => { mcHtml += `<div style="padding:6px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">${k}</span><span>${v}</span></div>`; });
+    } else { mcHtml = '<p class="dim">No Monte Carlo data</p>'; }
+    document.getElementById('bt-montecarlo').innerHTML = mcHtml;
+
+    // OOS results
+    const oos = r.oos_summary || d.oos_summary || {};
+    let oosHtml = '';
+    if (oos.n_tests) {
+      const oosRows = [
+        ['Tests Run', oos.n_tests],
+        ['Avg Return', `<span class="${oos.avg_return_pct>=0?'buy':'sell'}">${oos.avg_return_pct}%</span>`],
+        ['Median Return', `<span class="${oos.median_return_pct>=0?'buy':'sell'}">${oos.median_return_pct}%</span>`],
+        ['OOS Win Rate', `${oos.win_rate}%`],
+        ['Avg Sharpe', oos.avg_sharpe],
+        ['Best Window', `<span class="buy">${oos.best_return}%</span>`],
+        ['Worst Window', `<span class="sell">${oos.worst_return}%</span>`],
+      ];
+      oosRows.forEach(([k,v]) => { oosHtml += `<div style="padding:6px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">${k}</span><span>${v}</span></div>`; });
+    } else { oosHtml = '<p class="dim">No OOS data</p>'; }
+    document.getElementById('bt-oos').innerHTML = oosHtml;
+
+    // Exit reasons
+    const exits = r.exit_reasons || {};
+    let exitHtml = '';
+    const exitColors = {TAKE_PROFIT:'buy', STOP_LOSS:'sell', MAX_HOLD:'hold', END_OF_DATA:'dim'};
+    Object.entries(exits).forEach(([k,v]) => {
+      const total = r.total_trades||1;
+      const pctE = (v/total*100).toFixed(1);
+      exitHtml += `<div style="padding:6px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="${exitColors[k]||'dim'}">${k}</span><span>${v} (${pctE}%)</span></div>`;
+    });
+    document.getElementById('bt-exits').innerHTML = exitHtml || '<p class="dim">--</p>';
+
+    // Top/Bottom 5
+    const top5 = r.top_5_stocks || [];
+    const bot5 = r.bottom_5_stocks || [];
+    const stockRowHtml = (arr, el) => {
+      let html = '<table><thead><tr><th>Ticker</th><th>Return</th><th>Trades</th><th>Sharpe</th></tr></thead><tbody>';
+      arr.forEach(s => {
+        html += `<tr><td><strong>${s.ticker}</strong></td><td class="${s.return_pct>=0?'buy':'sell'}">${s.return_pct>=0?'+':''}${s.return_pct}%</td><td>${s.trades}</td><td>${s.sharpe?.toFixed(2)||'--'}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      document.getElementById(el).innerHTML = html;
+    };
+    stockRowHtml(top5, 'bt-top5');
+    stockRowHtml(bot5, 'bt-bottom5');
+
+    // Per-stock table
+    const stocks = Object.entries(ps).sort((a,b)=>(b[1].total_return_pct||0)-(a[1].total_return_pct||0));
+    let tblHtml = '<table><thead><tr><th>Ticker</th><th>Trades</th><th>Win%</th><th>PNL</th><th>Return%</th><th>Sharpe</th><th>Avg R</th><th>Max DD%</th><th>PF</th></tr></thead><tbody>';
+    stocks.forEach(([tk,v]) => {
+      if (!v.total_trades) return;
+      const c = v.total_return_pct >= 0 ? 'buy' : 'sell';
+      tblHtml += `<tr style="cursor:pointer" onclick="loadTickerTrades('${tk}')"><td><strong>${tk}</strong></td><td>${v.total_trades||v.n_trades||0}</td><td>${v.win_rate||0}%</td><td class="${c}">$${(v.total_pnl||0).toLocaleString()}</td><td class="${c}">${v.total_return_pct>=0?'+':''}${v.total_return_pct||0}%</td><td>${v.sharpe_ratio||'--'}</td><td>${v.avg_r_multiple||'--'}R</td><td class="sell">${v.max_drawdown_pct||0}%</td><td>${v.profit_factor||'--'}</td></tr>`;
+    });
+    tblHtml += '</tbody></table>';
+    document.getElementById('bt-stock-table').innerHTML = tblHtml;
+
+    log('Backtest results loaded', 'success');
+  } catch(e) { log('Load results error: '+e.message,'error'); }
+}
+
+async function loadTickerTrades(ticker) {
+  try {
+    const d = await api('/backtest/results/' + ticker);
+    if (d.error) { log(d.error, 'error'); return; }
+    const el = document.getElementById('bt-trade-detail');
+    el.style.display = 'block';
+    document.getElementById('bt-detail-ticker').textContent = ticker;
+    const trades = d.trades || [];
+    if (!trades.length) { document.getElementById('bt-trade-list').innerHTML = '<p class="dim">No trades</p>'; return; }
+
+    let html = '<table><thead><tr><th>Dir</th><th>Entry</th><th>Exit</th><th>Entry$</th><th>Exit$</th><th>SL</th><th>TP</th><th>Bars</th><th>PNL</th><th>R</th><th>Reason</th></tr></thead><tbody>';
+    trades.forEach(t => {
+      const c = t.net_pnl >= 0 ? 'buy' : 'sell';
+      html += `<tr><td class="${t.direction==='LONG'?'buy':'sell'}">${t.direction}</td><td class="dim" style="font-size:11px">${t.entry_date}</td><td class="dim" style="font-size:11px">${t.exit_date}</td><td>$${t.entry_price}</td><td>$${t.exit_price}</td><td class="sell">$${t.stop_loss}</td><td class="buy">$${t.take_profit}</td><td>${t.bars_held}</td><td class="${c}">$${t.net_pnl?.toLocaleString()}</td><td class="${c}">${t.r_multiple}R</td><td class="${t.exit_reason==='TAKE_PROFIT'?'buy':t.exit_reason==='STOP_LOSS'?'sell':'dim'}">${t.exit_reason}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('bt-trade-list').innerHTML = html;
+    el.scrollIntoView({behavior:'smooth'});
+  } catch(e) { log('Trade detail error: '+e.message,'error'); }
+}
 
 // ── Keyboard shortcuts ──────────
 document.addEventListener('keydown', (e) => {

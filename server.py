@@ -400,18 +400,139 @@ def agent_terminal(since: int = 0, user=Depends(get_current_user)):
 
 @app.post("/nn/train/mass")
 def train_mass(user=Depends(get_current_user)):
-    """Mass-train all models on 300 S&P 500 stocks (10 years)."""
+    """Mass-train all models on 500 stocks (5 years) — runs in background."""
     from mass_trainer import download_all, train_all_models
-    import random
-    bars = download_all(n_stocks=300, period="10y", workers=12)
+    bars = download_all(n_stocks=500, period="5y", workers=12)
     if len(bars) < 1000:
         return {"error": "Not enough data collected"}
-    train_all_models(bars)
+    results = train_all_models(bars)
     return _clean({
         "status": "complete",
         "bars_trained": len(bars),
+        "training": results,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     })
+
+
+# ─── BACKTEST ENDPOINTS ───────────────────────────────────────────
+
+class BacktestRequest(BaseModel):
+    n_stocks: int = 100
+    period: str = "2y"
+    reward_ratio: float = 5.0
+    risk_per_trade_pct: float = 1.0
+    initial_capital: float = 100_000
+
+_backtest_state = {"running": False, "progress": 0, "message": "", "result": None}
+
+@app.post("/backtest/run")
+def backtest_run(req: BacktestRequest, user=Depends(get_current_user)):
+    """Run backtest on N stocks with configurable R/R. Returns immediately, polls via /backtest/status."""
+    if _backtest_state["running"]:
+        return {"error": "Backtest already running", "progress": _backtest_state["progress"]}
+
+    import threading
+    def _run():
+        _backtest_state["running"] = True
+        _backtest_state["progress"] = 0
+        _backtest_state["message"] = "Starting..."
+        _backtest_state["result"] = None
+        try:
+            from backtester import Backtester
+            from universe import ALL_STOCKS
+            import random as _r
+
+            tickers = list(ALL_STOCKS)
+            _r.shuffle(tickers)
+            tickers = tickers[:req.n_stocks]
+
+            bt = Backtester(config={
+                "initial_capital": req.initial_capital,
+                "risk_per_trade_pct": req.risk_per_trade_pct,
+                "reward_ratio": req.reward_ratio,
+                "max_positions": 10,
+                "min_confidence": 35,
+                "min_agreement_pct": 50,
+                "atr_sl_multiple": 1.5,
+                "use_trailing_stop": True,
+                "trailing_stop_atr": 2.0,
+                "max_hold_bars": 60,
+                "oos_months": 3,
+                "n_random_tests": 5,
+                "monte_carlo_runs": 500,
+            })
+            bt.set_progress_callback(lambda pct, msg: _backtest_state.update({"progress": pct, "message": msg}))
+            result = bt.run_full_backtest(tickers, period=req.period, workers=4, run_oos=True)
+            _backtest_state["result"] = result
+        except Exception as e:
+            _backtest_state["result"] = {"error": str(e)}
+        finally:
+            _backtest_state["running"] = False
+            _backtest_state["progress"] = 100
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"status": "started", "n_stocks": req.n_stocks, "period": req.period}
+
+@app.get("/backtest/status")
+def backtest_status(user=Depends(get_current_user)):
+    """Poll backtest progress."""
+    return _clean({
+        "running": _backtest_state["running"],
+        "progress": round(_backtest_state["progress"], 1),
+        "message": _backtest_state["message"],
+        "has_result": _backtest_state["result"] is not None,
+    })
+
+@app.get("/backtest/results")
+def backtest_results(user=Depends(get_current_user)):
+    """Get the latest backtest results (full)."""
+    if _backtest_state["result"] is None:
+        return {"error": "No backtest results available. Run a backtest first."}
+    return _clean(_backtest_state["result"])
+
+@app.get("/backtest/results/{ticker}")
+def backtest_ticker_results(ticker: str, user=Depends(get_current_user)):
+    """Get backtest results for a specific ticker."""
+    if _backtest_state["result"] is None:
+        return {"error": "No backtest results"}
+    full = _backtest_state["result"].get("per_stock_full", {})
+    if ticker.upper() not in full:
+        return {"error": f"No results for {ticker}"}
+    return _clean(full[ticker.upper()])
+
+@app.get("/backtest/history")
+def backtest_history(user=Depends(get_current_user)):
+    """List saved backtest result files."""
+    from backtester import Backtester
+    return _clean(Backtester.list_results())
+
+@app.post("/train/full-pipeline")
+def train_full_pipeline(user=Depends(get_current_user)):
+    """Full pipeline: download 500 stocks, train all models, backtest, OOS, Monte Carlo."""
+    if _backtest_state["running"]:
+        return {"error": "Pipeline already running"}
+
+    import threading
+    def _run():
+        _backtest_state["running"] = True
+        _backtest_state["progress"] = 0
+        _backtest_state["message"] = "Starting full pipeline..."
+        _backtest_state["result"] = None
+        try:
+            from mass_trainer import full_pipeline
+            result = full_pipeline(
+                n_stocks=500,
+                progress_cb=lambda pct, msg: _backtest_state.update({"progress": pct, "message": msg})
+            )
+            _backtest_state["result"] = result
+        except Exception as e:
+            _backtest_state["result"] = {"error": str(e)}
+        finally:
+            _backtest_state["running"] = False
+            _backtest_state["progress"] = 100
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"status": "started", "pipeline": "download + train + backtest + OOS + Monte Carlo"}
 
 
 def _fetch_training_data(ticker: str, period: str = "1y") -> dict:
