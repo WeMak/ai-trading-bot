@@ -18,7 +18,7 @@ from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 import yfinance as yf
 
-from trading_agent import _rsi, _macd, _bollinger, _sma, _atr
+from gpu_compute import rsi_gpu as _rsi, macd_gpu as _macd, bollinger_gpu as _bollinger, sma_gpu as _sma, atr_gpu as _atr
 from paper_trader import PaperTrader
 
 # ─── STATE ──────────────────────────────────────────────────────

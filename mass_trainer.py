@@ -18,7 +18,7 @@ import yfinance as yf
 # Add project to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from trading_agent import _rsi, _macd, _bollinger, _sma, _atr
+from gpu_compute import rsi_gpu as _rsi, macd_gpu as _macd, bollinger_gpu as _bollinger, sma_gpu as _sma, atr_gpu as _atr
 
 from universe import ALL_STOCKS
 SP500_STOCKS = ALL_STOCKS  # ~1900 stocks across all sectors

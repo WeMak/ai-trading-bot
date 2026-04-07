@@ -416,7 +416,7 @@ def train_mass(user=Depends(get_current_user)):
 
 def _fetch_training_data(ticker: str, period: str = "1y") -> dict:
     """Fetch and prepare training data for neural network models."""
-    from trading_agent import _rsi, _macd, _bollinger, _sma, _atr
+    from gpu_compute import rsi_gpu as _rsi, macd_gpu as _macd, bollinger_gpu as _bollinger, sma_gpu as _sma, atr_gpu as _atr
     try:
         from data_fetcher import fetch
         hist = fetch(ticker, period=period)
@@ -571,6 +571,18 @@ def system_health(user=Depends(get_current_user)):
     except Exception:
         health["recent_errors"] = 0
     return _clean(health)
+
+@app.get("/gpu/status")
+def gpu_status(user=Depends(get_current_user)):
+    """GPU compute engine status — VRAM, ops, device info."""
+    from gpu_compute import gpu
+    return _clean(gpu.status())
+
+@app.post("/gpu/benchmark")
+def gpu_benchmark(user=Depends(get_current_user)):
+    """Run GPU vs CPU benchmark."""
+    from gpu_compute import benchmark
+    return _clean(benchmark(n_tickers=50, n_bars=500))
 
 
 # ─── AI CHAT ENDPOINTS ─────────────────────────────────────────

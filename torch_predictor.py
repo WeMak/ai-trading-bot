@@ -29,6 +29,12 @@ SCALER_PATH = os.path.join(DATA_DIR, "scaler_params.json")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Enable TF32 for faster float32 math on RTX 30xx/40xx/50xx
+if torch.cuda.is_available():
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cudnn.benchmark = True  # auto-tune convolutions
+
 # ─── FEATURE ENGINEERING ────────────────────────────────────────
 N_FEATURES = 14
 WINDOW_SIZE = 20  # bars lookback
@@ -161,6 +167,8 @@ class TorchPredictor:
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode="min", patience=5, factor=0.5
         )
+        # Mixed precision (AMP) for GPU — 2-3x faster training on RTX 50xx
+        self.scaler = torch.amp.GradScaler("cuda", enabled=DEVICE.type == "cuda")
         self.epoch = 0
         self.stats = {"epochs": [], "train_loss": [], "val_loss": [], "accuracy": []}
         self._load()
@@ -214,26 +222,38 @@ class TorchPredictor:
         X_train, X_val = X[:split], X[split:]
         y_train, y_val = y[:split], y[split:]
 
+        # GPU gets larger batch sizes for better utilization
+        bs_train = 256 if DEVICE.type == "cuda" else 32
+        bs_val = 512 if DEVICE.type == "cuda" else 64
+        pin = DEVICE.type == "cuda"
+        nw = 2 if DEVICE.type == "cuda" else 0
+
         train_ds = PriceDataset(X_train, y_train)
         val_ds = PriceDataset(X_val, y_val)
-        train_dl = DataLoader(train_ds, batch_size=32, shuffle=True)
-        val_dl = DataLoader(val_ds, batch_size=64)
+        train_dl = DataLoader(train_ds, batch_size=bs_train, shuffle=True,
+                              pin_memory=pin, num_workers=nw, persistent_workers=nw > 0)
+        val_dl = DataLoader(val_ds, batch_size=bs_val,
+                            pin_memory=pin, num_workers=nw, persistent_workers=nw > 0)
 
         best_val_loss = float("inf")
         patience_counter = 0
+        use_amp = DEVICE.type == "cuda"
 
         self.model.train()
         for ep in range(epochs):
-            # Training
+            # Training with mixed precision (AMP)
             train_losses = []
             for xb, yb in train_dl:
-                xb, yb = xb.to(DEVICE), yb.to(DEVICE)
-                self.optimizer.zero_grad()
-                pred = self.model(xb)
-                loss = self.criterion(pred, yb)
-                loss.backward()
+                xb, yb = xb.to(DEVICE, non_blocking=True), yb.to(DEVICE, non_blocking=True)
+                self.optimizer.zero_grad(set_to_none=True)
+                with torch.amp.autocast("cuda", enabled=use_amp):
+                    pred = self.model(xb)
+                    loss = self.criterion(pred, yb)
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-                self.optimizer.step()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
                 train_losses.append(loss.item())
 
             # Validation
@@ -241,9 +261,9 @@ class TorchPredictor:
             val_losses = []
             correct = 0
             total = 0
-            with torch.no_grad():
+            with torch.no_grad(), torch.amp.autocast("cuda", enabled=use_amp):
                 for xb, yb in val_dl:
-                    xb, yb = xb.to(DEVICE), yb.to(DEVICE)
+                    xb, yb = xb.to(DEVICE, non_blocking=True), yb.to(DEVICE, non_blocking=True)
                     pred = self.model(xb)
                     val_losses.append(self.criterion(pred, yb).item())
 

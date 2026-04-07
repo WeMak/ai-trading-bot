@@ -411,6 +411,14 @@ tbody tr.clickable{cursor:pointer}
     </div>
   </div>
 
+  <!-- GPU Status -->
+  <div class="card mb">
+    <h2>GPU Compute Engine</h2>
+    <div id="gpu-status">
+      <div class="empty-state"><p>Loading GPU info...</p></div>
+    </div>
+  </div>
+
   <!-- Sector Heatmap -->
   <div class="card mb">
     <h2>Sector Heatmap</h2>
@@ -1618,7 +1626,7 @@ showPage = function(name) {
 
 // ── Market Overview ─────────────
 async function loadMarketAll() {
-  loadMarketIndices(); loadSectorHeatmap(); loadFearGreed(); loadMarketMovers(); loadWatchlist(); loadSystemHealth(); loadHealerLog();
+  loadMarketIndices(); loadSectorHeatmap(); loadFearGreed(); loadMarketMovers(); loadWatchlist(); loadSystemHealth(); loadGPUStatus(); loadHealerLog();
 }
 
 async function loadMarketIndices() {
@@ -1764,6 +1772,27 @@ async function loadHealerLog() {
     html += '</tbody></table>';
     el.innerHTML = html;
   } catch(e) { log('Healer log error: '+e.message,'error'); }
+}
+
+async function loadGPUStatus() {
+  try {
+    const d = await api('/gpu/status');
+    const el = document.getElementById('gpu-status');
+    const ok = d.gpu_available;
+    const pctUsed = d.vram_total_gb > 0 ? ((d.vram_used_gb / d.vram_total_gb) * 100).toFixed(1) : 0;
+    let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">GPU</span><span><span class="dot ${ok?'on':'off'}"></span> ${d.gpu_name}</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">CUDA</span><span>${d.cuda_version}</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">VRAM</span><span>${d.vram_used_gb} / ${d.vram_total_gb} GB (${pctUsed}%)</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">Compute</span><span>${d.compute_capability}</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">NN Training</span><span class="buy">${d.nn_device}</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">Indicators</span><span>${d.indicator_device}</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">Indicator Ops</span><span>${d.stats?.indicator_ops||0}</span></div>`;
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--bg)" class="flex-between"><span class="dim">Tickers Processed</span><span>${d.stats?.total_tickers_processed||0}</span></div>`;
+    html += `</div>`;
+    html += `<div style="margin-top:10px;padding:6px 10px;background:var(--bg);border-radius:6px;font-size:12px" class="dim">${d.strategy}</div>`;
+    el.innerHTML = html;
+  } catch(e) { document.getElementById('gpu-status').innerHTML = '<p class="dim">GPU status unavailable</p>'; }
 }
 
 // ── AI Chat ─────────────────────
