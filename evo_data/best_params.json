@@ -1,0 +1,16 @@
+{
+  "rsi_buy_threshold": 45.0,
+  "rsi_sell_threshold": 69.87330101153108,
+  "macd_weight": 1.0854630312688225,
+  "bb_weight": 2.0,
+  "sma_weight": 2.0,
+  "volume_weight": 0.28364655317371634,
+  "atr_weight": 0.10476639010423347,
+  "entry_confidence": 0.3,
+  "position_size": 0.95,
+  "stop_loss_pct": 0.14667487317458316,
+  "take_profit_pct": 0.13833544728516906,
+  "trailing_stop": 0.03971278605920524,
+  "max_hold_bars": 5.666289440878862,
+  "cooldown_bars": 16.64377405510293
+}

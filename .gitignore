@@ -1,37 +1,37 @@
-# Credentials & secrets — NEVER commit these
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets & environment
 .env
-*.env
+.env.*
 secrets.json
 
-# Paper trading account data (personal)
+# Claude Code local config (contains local paths/usernames)
+.claude/settings.local.json
+.claude/launch.json
+
+# Runtime state & logs
+server.log
+*.log
+auto_trader_state.json
 paper_account.json
 
-# Security scan results (personal)
-security_report.json
+# Scan/backtest results (generated at runtime)
+scan_results/
+backtest_results/
+
+# Large binary model files
+torch_data/price_predictor.pt
+neat_data/best_genome.pkl
+evo_data/population.pkl
+training_data.json
+
+# Misc
 test_chart.html
-
-# Python cache
-__pycache__/
-*.py[cod]
-*.pyo
-.pytest_cache/
 *.egg-info/
-
-# Virtual environments
-venv/
-env/
+dist/
+build/
 .venv/
-
-# Logs
-*.log
-uvicorn.log
-
-# OS files
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# IDE
-.vscode/
-.idea/
-*.swp

@@ -47,14 +47,15 @@ def _analyze_quick(ticker: str) -> Optional[dict]:
     try:
         end   = datetime.today()
         start = end - timedelta(days=260)
-        df    = yf.Ticker(yf_sym).history(start=start, end=end, auto_adjust=True)
+        from data_fetcher import fetch as _dfetch
+        df = _dfetch(yf_sym, start=start, end=end)
 
-        if df.empty and not is_crypto:
-            df = yf.Ticker(raw + "-USD").history(start=start, end=end, auto_adjust=True)
-            if not df.empty:
+        if (df is None or df.empty) and not is_crypto:
+            df = _dfetch(raw + "-USD", start=start, end=end)
+            if df is not None and not df.empty:
                 yf_sym, is_crypto = raw + "-USD", True
 
-        if df.empty or len(df) < 55:
+        if df is None or df.empty or len(df) < 55:
             return None
 
         df     = df.dropna(subset=["Close"])

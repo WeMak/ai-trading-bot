@@ -29,6 +29,12 @@ import yfinance as yf
 from datetime import datetime, timedelta
 from typing import Optional
 
+# ── GPU-accelerated indicators ───────────────────────────────
+from gpu_compute import (
+    ema_gpu as _ema, rsi_gpu as _rsi, macd_gpu as _macd,
+    bollinger_gpu as _bollinger, sma_gpu as _sma, atr_gpu as _atr,
+)
+
 # ── Dashboard-matching dark palette ──────────────────────────
 BG      = "#0f172a"
 PANEL   = "#1e293b"
@@ -42,89 +48,6 @@ SMA200_C= "#a78bfa"
 RSI_CLR = "#22d3ee"
 MACD_C  = "#22d3ee"
 SIG_C   = "#f59e0b"
-
-# ── Math helpers ──────────────────────────────────────────────
-def _ema(arr: np.ndarray, period: int) -> np.ndarray:
-    out = np.full(len(arr), np.nan)
-    valid = np.where(~np.isnan(arr))[0]
-    if len(valid) < period:
-        return out
-    s = valid[0]
-    if s + period - 1 >= len(arr):
-        return out
-    out[s + period - 1] = float(np.nanmean(arr[s:s+period]))
-    alpha = 2.0 / (period + 1)
-    for i in range(s + period, len(arr)):
-        if not np.isnan(arr[i]):
-            out[i] = alpha * arr[i] + (1 - alpha) * out[i-1]
-        else:
-            out[i] = out[i-1]
-    return out
-
-def _rsi(closes: np.ndarray, period: int = 14) -> np.ndarray:
-    n = len(closes)
-    out = np.full(n, np.nan)
-    if n < period + 1:
-        return out
-    delta = np.diff(closes.astype(float))
-    gain  = np.where(delta > 0,  delta, 0.0)
-    loss  = np.where(delta < 0, -delta, 0.0)
-    alpha = 1.0 / period
-    ag = np.full(len(gain), np.nan)
-    al = np.full(len(gain), np.nan)
-    ag[period-1] = float(np.mean(gain[:period]))
-    al[period-1] = float(np.mean(loss[:period]))
-    for i in range(period, len(gain)):
-        ag[i] = alpha * gain[i] + (1 - alpha) * ag[i-1]
-        al[i] = alpha * loss[i] + (1 - alpha) * al[i-1]
-    rs = ag / (al + 1e-10)
-    rsi_vals = 100.0 - 100.0 / (1.0 + rs)
-    out[1:] = rsi_vals
-    return out
-
-def _macd(closes: np.ndarray, fast=12, slow=26, sig_p=9):
-    ef = _ema(closes, fast)
-    es = _ema(closes, slow)
-    line   = ef - es
-    signal = _ema(np.where(np.isnan(line), np.nan, line), sig_p)
-    hist   = line - signal
-    return line, signal, hist
-
-def _bollinger(closes: np.ndarray, period=20, nstd=2.0):
-    n = len(closes)
-    mid   = np.full(n, np.nan)
-    upper = np.full(n, np.nan)
-    lower = np.full(n, np.nan)
-    for i in range(period - 1, n):
-        w = closes[i - period + 1:i + 1]
-        m = float(np.mean(w))
-        s = float(np.std(w))
-        mid[i]   = m
-        upper[i] = m + nstd * s
-        lower[i] = m - nstd * s
-    return upper, mid, lower
-
-def _sma(closes: np.ndarray, period: int) -> np.ndarray:
-    out = np.full(len(closes), np.nan)
-    for i in range(period - 1, len(closes)):
-        out[i] = float(np.mean(closes[i - period + 1:i + 1]))
-    return out
-
-def _atr(highs, lows, closes, period=14) -> np.ndarray:
-    n = len(closes)
-    out = np.full(n, np.nan)
-    if n < 2:
-        return out
-    tr = np.maximum(highs[1:] - lows[1:],
-         np.maximum(np.abs(highs[1:] - closes[:-1]),
-                    np.abs(lows[1:]  - closes[:-1])))
-    if len(tr) < period:
-        return out
-    out[period] = float(np.mean(tr[:period]))
-    alpha = 1.0 / period
-    for i in range(period + 1, n):
-        out[i] = alpha * tr[i - 1] + (1 - alpha) * out[i - 1]
-    return out
 
 def _sr_levels(highs, lows, lookback=80, n=3):
     h = highs[-lookback:]
@@ -447,14 +370,15 @@ def analyze(ticker: str, question: Optional[str] = None) -> dict:
     end   = datetime.today()
     start = end - timedelta(days=260)
 
-    df = yf.Ticker(yf_sym).history(start=start, end=end, auto_adjust=True)
-    if df.empty and not is_crypto:
-        df = yf.Ticker(raw + "-USD").history(start=start, end=end, auto_adjust=True)
-        if not df.empty:
+    from data_fetcher import fetch as _dfetch
+    df = _dfetch(yf_sym, start=start, end=end)
+    if (df is None or df.empty) and not is_crypto:
+        df = _dfetch(raw + "-USD", start=start, end=end)
+        if df is not None and not df.empty:
             yf_sym    = raw + "-USD"
             is_crypto = True
 
-    if df.empty:
+    if df is None or df.empty:
         return {"error": f"No data found for '{raw}'. Check the ticker.", "ticker": raw}
 
     df = df.dropna(subset=["Close"])
