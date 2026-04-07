@@ -106,10 +106,9 @@ def _get_nn_context():
 def _fetch_live_data(ticker):
     """Fetch live price data for a ticker."""
     try:
-        import yfinance as yf
-        tkr = yf.Ticker(ticker.upper())
-        hist = tkr.history(period="5d")
-        if hist.empty:
+        from data_fetcher import fetch
+        hist = fetch(ticker.upper(), period="5d")
+        if hist is None or hist.empty:
             return None
         last = hist.iloc[-1]
         prev = hist.iloc[-2] if len(hist) > 1 else hist.iloc[0]

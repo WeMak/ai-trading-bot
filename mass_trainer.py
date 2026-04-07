@@ -27,9 +27,9 @@ SP500_STOCKS = ALL_STOCKS  # ~1900 stocks across all sectors
 def _process_ticker(ticker: str, period: str = "10y") -> dict:
     """Download and process one ticker into training bars."""
     try:
-        tkr = yf.Ticker(ticker)
-        hist = tkr.history(period=period)
-        if hist.empty or len(hist) < 200:
+        from data_fetcher import fetch
+        hist = fetch(ticker, period=period)
+        if hist is None or hist.empty or len(hist) < 200:
             return {"ticker": ticker, "bars": [], "error": "insufficient data"}
 
         close = hist["Close"].values.astype(float)

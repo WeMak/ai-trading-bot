@@ -27,7 +27,8 @@ def _analyze_ticker(ticker: str) -> Optional[dict]:
     try:
         end = datetime.today()
         start = end - timedelta(days=260)
-        df = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True)
+        from data_fetcher import fetch
+        df = fetch(ticker, start=start, end=end)
 
         if df.empty or len(df) < 55:
             return None

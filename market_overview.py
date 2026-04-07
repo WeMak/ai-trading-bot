@@ -40,15 +40,12 @@ def _safe_pct(current, previous):
 def get_market_indices() -> list:
     """Get current values for major market indices."""
     results = []
-    tickers = list(INDICES.values())
-    data = yf.download(tickers, period="5d", group_by="ticker", progress=False, threads=True)
+    from data_fetcher import fetch, batch_fetch_parallel
+    data_dict = batch_fetch_parallel(list(INDICES.values()), period="5d", workers=10)
 
     for name, sym in INDICES.items():
         try:
-            if len(INDICES) == 1:
-                df = data
-            else:
-                df = data[sym] if sym in data.columns.get_level_values(0) else None
+            df = data_dict.get(sym)
             if df is None or df.empty:
                 continue
             close = df["Close"].dropna()
@@ -71,11 +68,12 @@ def get_sector_heatmap() -> list:
     """Sector ETF performance heatmap (1D, 1W, 1M)."""
     results = []
     etfs = list(SECTOR_ETFS.values())
-    data = yf.download(etfs, period="1mo", group_by="ticker", progress=False, threads=True)
+    from data_fetcher import batch_fetch
+    data_dict = batch_fetch(etfs, period="1mo")
 
     for name, sym in SECTOR_ETFS.items():
         try:
-            df = data[sym] if sym in data.columns.get_level_values(0) else None
+            df = data_dict.get(sym)
             if df is None or df.empty:
                 continue
             close = df["Close"].dropna().values.astype(float)
@@ -110,7 +108,8 @@ def get_fear_greed() -> dict:
 
     try:
         # 1. VIX — lower = greed, higher = fear
-        vix = yf.Ticker("^VIX").history(period="5d")
+        from data_fetcher import fetch as _df
+        vix = _df("^VIX", period="5d")
         if not vix.empty:
             vix_val = float(vix["Close"].iloc[-1])
             if vix_val < 15:
@@ -130,7 +129,8 @@ def get_fear_greed() -> dict:
 
     try:
         # 2. S&P 500 momentum — price vs 50-day SMA
-        spy = yf.Ticker("SPY").history(period="3mo")
+        from data_fetcher import fetch as _df
+        spy = _df("SPY", period="3mo")
         if not spy.empty and len(spy) > 50:
             close = spy["Close"].values.astype(float)
             sma50 = np.mean(close[-50:])
@@ -145,11 +145,15 @@ def get_fear_greed() -> dict:
         # 3. Market breadth — how many of top stocks are up today
         tickers = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JPM", "UNH", "V",
                     "XOM", "JNJ", "PG", "HD", "MA", "BAC", "PFE", "KO", "PEP", "COST"]
-        data = yf.download(tickers, period="5d", group_by="ticker", progress=False, threads=True)
+        from data_fetcher import batch_fetch
+        data_dict = batch_fetch(tickers, period="5d")
         up = 0
         for t in tickers:
             try:
-                c = data[t]["Close"].dropna()
+                df = data_dict.get(t)
+                if df is None or df.empty:
+                    continue
+                c = df["Close"].dropna()
                 if len(c) >= 2 and float(c.iloc[-1]) > float(c.iloc[-2]):
                     up += 1
             except Exception:
@@ -163,8 +167,9 @@ def get_fear_greed() -> dict:
 
     try:
         # 4. Safe haven demand — gold vs S&P ratio change
-        gold = yf.Ticker("GC=F").history(period="1mo")
-        sp = yf.Ticker("^GSPC").history(period="1mo")
+        from data_fetcher import fetch as _df
+        gold = _df("GC=F", period="1mo")
+        sp = _df("^GSPC", period="1mo")
         if not gold.empty and not sp.empty:
             g_chg = (float(gold["Close"].iloc[-1]) / float(gold["Close"].iloc[0]) - 1) * 100
             s_chg = (float(sp["Close"].iloc[-1]) / float(sp["Close"].iloc[0]) - 1) * 100
@@ -223,15 +228,13 @@ def get_watchlist() -> list:
         return []
 
     tickers = [w["ticker"] for w in wl]
-    data = yf.download(tickers, period="5d", group_by="ticker", progress=False, threads=True)
+    from data_fetcher import batch_fetch
+    data_dict = batch_fetch(tickers, period="5d")
 
     for w in wl:
         try:
             t = w["ticker"]
-            if len(tickers) == 1:
-                df = data
-            else:
-                df = data[t] if t in data.columns.get_level_values(0) else None
+            df = data_dict.get(t)
             if df is None or df.empty:
                 continue
             close = df["Close"].dropna()
@@ -287,11 +290,12 @@ def get_market_movers() -> dict:
     import random
     sample = random.sample(all_tickers, min(50, len(all_tickers)))
 
-    data = yf.download(sample, period="2d", group_by="ticker", progress=False, threads=True)
+    from data_fetcher import batch_fetch
+    data_dict = batch_fetch(sample, period="5d")
     movers = []
     for t in sample:
         try:
-            df = data[t] if t in data.columns.get_level_values(0) else None
+            df = data_dict.get(t)
             if df is None or df.empty:
                 continue
             close = df["Close"].dropna()

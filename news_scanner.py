@@ -54,9 +54,8 @@ def _fetch_rss(url: str, timeout: int = 10) -> list:
 def _fetch_yahoo_news(ticker: str) -> list:
     """Get news for a specific ticker from Yahoo Finance."""
     try:
-        import yfinance as yf
-        tkr = yf.Ticker(ticker)
-        news = tkr.news or []
+        from data_fetcher import fetch_news
+        news = fetch_news(ticker)
         items = []
         for n in news[:15]:
             items.append({

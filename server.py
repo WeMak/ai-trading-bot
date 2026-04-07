@@ -418,9 +418,9 @@ def _fetch_training_data(ticker: str, period: str = "1y") -> dict:
     """Fetch and prepare training data for neural network models."""
     from trading_agent import _rsi, _macd, _bollinger, _sma, _atr
     try:
-        tkr = yf.Ticker(ticker)
-        hist = tkr.history(period=period)
-        if hist.empty or len(hist) < 50:
+        from data_fetcher import fetch
+        hist = fetch(ticker, period=period)
+        if hist is None or hist.empty or len(hist) < 50:
             return {"error": f"Not enough data for {ticker}"}
 
         close = hist["Close"].values.astype(float)
@@ -531,6 +531,18 @@ def healer_log(user=Depends(get_current_user)):
     """Get self-healing error log."""
     from self_healer import get_heal_log
     return _clean(get_heal_log())
+
+@app.get("/data/stats")
+def data_stats(user=Depends(get_current_user)):
+    """Data fetcher stats — cache hits, rate limits, errors."""
+    from data_fetcher import get_stats
+    return _clean(get_stats())
+
+@app.post("/data/clear-cache")
+def data_clear_cache(user=Depends(get_current_user)):
+    """Clear the data fetcher cache."""
+    from data_fetcher import clear_cache
+    return clear_cache()
 
 @app.get("/system/health")
 def system_health(user=Depends(get_current_user)):

@@ -447,14 +447,15 @@ def analyze(ticker: str, question: Optional[str] = None) -> dict:
     end   = datetime.today()
     start = end - timedelta(days=260)
 
-    df = yf.Ticker(yf_sym).history(start=start, end=end, auto_adjust=True)
-    if df.empty and not is_crypto:
-        df = yf.Ticker(raw + "-USD").history(start=start, end=end, auto_adjust=True)
-        if not df.empty:
+    from data_fetcher import fetch as _dfetch
+    df = _dfetch(yf_sym, start=start, end=end)
+    if (df is None or df.empty) and not is_crypto:
+        df = _dfetch(raw + "-USD", start=start, end=end)
+        if df is not None and not df.empty:
             yf_sym    = raw + "-USD"
             is_crypto = True
 
-    if df.empty:
+    if df is None or df.empty:
         return {"error": f"No data found for '{raw}'. Check the ticker.", "ticker": raw}
 
     df = df.dropna(subset=["Close"])

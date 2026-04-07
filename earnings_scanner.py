@@ -261,7 +261,10 @@ def analyze_earnings(ticker: str) -> dict:
     """Full earnings analysis for a single ticker."""
     t0 = time.time()
     try:
-        tkr = yf.Ticker(ticker)
+        from data_fetcher import fetch_options_chain
+        tkr = fetch_options_chain(ticker)
+        if tkr is None:
+            return {"error": f"Cannot fetch {ticker}", "ticker": ticker}
         hist = tkr.history(period="5d")
         if hist.empty:
             return {"error": f"No data for {ticker}", "ticker": ticker}

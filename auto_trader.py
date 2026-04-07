@@ -94,9 +94,9 @@ def _load_state():
 def _fetch_ticker_data(ticker: str) -> Optional[dict]:
     """Fetch price data and compute indicators for a single ticker."""
     try:
-        tkr = yf.Ticker(ticker)
-        hist = tkr.history(period="3mo")
-        if hist.empty or len(hist) < 30:
+        from data_fetcher import fetch
+        hist = fetch(ticker, period="3mo")
+        if hist is None or hist.empty or len(hist) < 30:
             return None
 
         close = hist["Close"].values.astype(float)
@@ -424,9 +424,9 @@ def _execute_signals(signals: list):
     # Update stops on existing positions
     for pos in pt.data.get("positions", []):
         try:
-            tkr = yf.Ticker(pos["ticker"])
-            hist = tkr.history(period="1d")
-            if hist.empty:
+            from data_fetcher import fetch
+            hist = fetch(pos["ticker"], period="1d")
+            if hist is None or hist.empty:
                 continue
             current = float(hist["Close"].iloc[-1])
 

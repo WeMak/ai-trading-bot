@@ -24,7 +24,8 @@ def _analyze_crypto(symbol: str, yf_ticker: str) -> Optional[dict]:
     try:
         end = datetime.today()
         start = end - timedelta(days=365)
-        df = yf.Ticker(yf_ticker).history(start=start, end=end, auto_adjust=True)
+        from data_fetcher import fetch
+        df = fetch(yf_ticker, start=start, end=end)
 
         if df.empty or len(df) < 55:
             return None
@@ -98,7 +99,8 @@ def _analyze_crypto(symbol: str, yf_ticker: str) -> Optional[dict]:
         btc_corr = None
         if symbol != "BTC":
             try:
-                btc_df = yf.Ticker("BTC-USD").history(start=start, end=end, auto_adjust=True)
+                from data_fetcher import fetch as _fetch
+                btc_df = _fetch("BTC-USD", start=start, end=end)
                 if not btc_df.empty and len(btc_df) > 30:
                     btc_closes = btc_df["Close"].values.astype(float)
                     min_len = min(len(closes), len(btc_closes))

@@ -185,7 +185,10 @@ def analyze_options(ticker: str, signal: str = "BOTH", min_days: int = 0,
     """
     try:
         t0 = time.time()
-        tkr = yf.Ticker(ticker)
+        from data_fetcher import fetch_options_chain
+        tkr = fetch_options_chain(ticker)
+        if tkr is None:
+            return {"error": f"Cannot fetch {ticker}", "ticker": ticker}
         hist = tkr.history(period="5d")
         if hist.empty:
             return {"error": f"No price data for {ticker}", "ticker": ticker}

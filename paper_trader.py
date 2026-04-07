@@ -52,8 +52,9 @@ class PaperTrader:
     # ── Price lookup ──────────────────────────────────────────
     def _price(self, ticker: str) -> float:
         try:
-            h = yf.Ticker(ticker).history(period="1d")
-            if not h.empty:
+            from data_fetcher import fetch
+            h = fetch(ticker, period="1d")
+            if h is not None and not h.empty:
                 return float(h["Close"].iloc[-1])
         except Exception:
             pass
